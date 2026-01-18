@@ -3,6 +3,7 @@
  * Shared between Cloud Run and Cloud Functions
  */
 const express = require('express');
+const path = require('path');
 const routes = require('./routes');
 const config = require('./config');
 
@@ -11,6 +12,9 @@ const app = express();
 // ============================================
 // Middleware
 // ============================================
+
+// Serve static files from public folder
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 // Parse JSON bodies
 app.use(express.json());

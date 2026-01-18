@@ -31,10 +31,10 @@ install: ## Install dependencies
 	npm install
 
 dev: ## Run development server with watch mode
-	npm run dev
+	GOOGLE_APPLICATION_CREDENTIALS=./credentials/service-account.json npm run dev
 
 start: ## Run production server
-	npm start
+	GOOGLE_APPLICATION_CREDENTIALS=./credentials/service-account.json npm start
 
 functions-local: ## Run Cloud Functions locally
 	npm run functions
@@ -42,8 +42,11 @@ functions-local: ## Run Cloud Functions locally
 lint: ## Run linter
 	npm run lint
 
-test: ## Run tests
-	npm test
+test: ## Run API tests (requires running server)
+	npm run test:api
+
+open: ## Open frontend in browser
+	open http://localhost:8080
 
 # ============================================
 # Docker

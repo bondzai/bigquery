@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BigQuery CRUD - API Tester</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #22c55e;
+      --error: #ef4444;
+      --warning: #f59e0b;
+      --border: #475569;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 0.5rem;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 1rem;
+      margin-bottom: 2rem;
+      padding: 1rem;
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      border: 1px solid var(--border);
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .status-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: var(--text-secondary);
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.connected { background: var(--success); }
+    .status-dot.error { background: var(--error); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+    }
+
+    @media (max-width: 900px) {
+      .grid { grid-template-columns: 1fr; }
+    }
+
+    .card {
+      background: var(--bg-secondary);
+      border-radius: 16px;
+      padding: 1.5rem;
+      border: 1px solid var(--border);
+      transition: box-shadow 0.3s;
+    }
+
+    .card:hover {
+      box-shadow: 0 8px 32px rgba(59, 130, 246, 0.1);
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .method-badge {
+      padding: 0.25rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .method-get { background: #22c55e30; color: #22c55e; }
+    .method-post { background: #3b82f630; color: #3b82f6; }
+    .method-put { background: #f59e0b30; color: #f59e0b; }
+    .method-delete { background: #ef444430; color: #ef4444; }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    input, textarea {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    textarea {
+      font-family: 'Fira Code', monospace;
+      font-size: 0.875rem;
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    button {
+      width: 100%;
+      padding: 0.875rem 1.5rem;
+      background: linear-gradient(135deg, var(--accent), #6366f1);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .response-panel {
+      grid-column: 1 / -1;
+    }
+
+    .response-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+    }
+
+    .response-status {
+      padding: 0.5rem 1rem;
+      border-radius: 8px;
+      font-weight: 600;
+    }
+
+    .response-status.success { background: #22c55e30; color: #22c55e; }
+    .response-status.error { background: #ef444430; color: #ef4444; }
+
+    pre {
+      background: var(--bg-primary);
+      padding: 1.5rem;
+      border-radius: 12px;
+      overflow-x: auto;
+      font-family: 'Fira Code', monospace;
+      font-size: 0.875rem;
+      line-height: 1.6;
+      max-height: 400px;
+      overflow-y: auto;
+    }
+
+    .items-list {
+      margin-top: 1.5rem;
+    }
+
+    .item-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem;
+      background: var(--bg-card);
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+    }
+
+    .item-info {
+      flex: 1;
+    }
+
+    .item-name {
+      font-weight: 600;
+    }
+
+    .item-id {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      font-family: monospace;
+    }
+
+    .item-actions {
+      display: flex;
+      gap: 0.5rem;
+    }
+
+    .btn-small {
+      padding: 0.5rem 1rem;
+      font-size: 0.875rem;
+      width: auto;
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #ef4444, #dc2626);
+    }
+
+    .btn-warning {
+      background: linear-gradient(135deg, #f59e0b, #d97706);
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+
+    .loading {
+      opacity: 0.7;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>🗄️ BigQuery CRUD</h1>
+      <p class="subtitle">API Testing Interface</p>
+    </header>
+
+    <div class="status-bar">
+      <div class="status-indicator">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Checking connection...</span>
+      </div>
+      <span id="apiUrl">http://localhost:8080</span>
+    </div>
+
+    <div class="grid">
+      <!-- Create Item -->
+      <div class="card">
+        <h2 class="card-title">
+          <span class="method-badge method-post">POST</span>
+          Create Item
+        </h2>
+        <form id="createForm">
+          <div class="form-group">
+            <label for="createName">Name *</label>
+            <input type="text" id="createName" placeholder="Item name" required>
+          </div>
+          <div class="form-group">
+            <label for="createValue">Value</label>
+            <input type="number" id="createValue" placeholder="Optional numeric value">
+          </div>
+          <div class="form-group">
+            <label for="createData">Data (JSON)</label>
+            <textarea id="createData" placeholder='{"key": "value"}'></textarea>
+          </div>
+          <button type="submit">Create Item</button>
+        </form>
+      </div>
+
+      <!-- Get Item by ID -->
+      <div class="card">
+        <h2 class="card-title">
+          <span class="method-badge method-get">GET</span>
+          Get Item by ID
+        </h2>
+        <form id="getByIdForm">
+          <div class="form-group">
+            <label for="getItemId">Item ID *</label>
+            <input type="text" id="getItemId" placeholder="Enter item ID" required>
+          </div>
+          <button type="submit">Get Item</button>
+        </form>
+      </div>
+
+      <!-- Update Item -->
+      <div class="card">
+        <h2 class="card-title">
+          <span class="method-badge method-put">PUT</span>
+          Update Item
+        </h2>
+        <form id="updateForm">
+          <div class="form-group">
+            <label for="updateId">Item ID *</label>
+            <input type="text" id="updateId" placeholder="Item ID to update" required>
+          </div>
+          <div class="form-group">
+            <label for="updateName">New Name</label>
+            <input type="text" id="updateName" placeholder="New name">
+          </div>
+          <div class="form-group">
+            <label for="updateValue">New Value</label>
+            <input type="number" id="updateValue" placeholder="New value">
+          </div>
+          <button type="submit">Update Item</button>
+        </form>
+      </div>
+
+      <!-- Delete Item -->
+      <div class="card">
+        <h2 class="card-title">
+          <span class="method-badge method-delete">DELETE</span>
+          Delete Item
+        </h2>
+        <form id="deleteForm">
+          <div class="form-group">
+            <label for="deleteId">Item ID *</label>
+            <input type="text" id="deleteId" placeholder="Item ID to delete" required>
+          </div>
+          <button type="submit" class="btn-danger">Delete Item</button>
+        </form>
+      </div>
+
+      <!-- Items List -->
+      <div class="card" style="grid-column: 1 / -1;">
+        <div class="response-header">
+          <h2 class="card-title">
+            <span class="method-badge method-get">GET</span>
+            All Items
+          </h2>
+          <button class="btn-small" onclick="loadItems()">Refresh</button>
+        </div>
+        <div id="itemsList" class="items-list">
+          <div class="empty-state">Loading...</div>
+        </div>
+      </div>
+
+      <!-- Response Panel -->
+      <div class="card response-panel">
+        <div class="response-header">
+          <h2 class="card-title">📤 Response</h2>
+          <span id="responseStatus" class="response-status"></span>
+        </div>
+        <pre id="responseBody">{}</pre>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_URL = 'http://localhost:8080';
+
+    // Check API health
+    async function checkHealth() {
+      const dot = document.getElementById('statusDot');
+      const text = document.getElementById('statusText');
+      
+      try {
+        const res = await fetch(`${API_URL}/health`);
+        const data = await res.json();
+        
+        dot.className = 'status-dot connected';
+        text.textContent = `Connected - ${data.environment}`;
+      } catch (err) {
+        dot.className = 'status-dot error';
+        text.textContent = 'Disconnected - Start server with: make dev';
+      }
+    }
+
+    // Display response
+    function showResponse(status, data) {
+      const statusEl = document.getElementById('responseStatus');
+      const bodyEl = document.getElementById('responseBody');
+      
+      statusEl.textContent = `${status}`;
+      statusEl.className = `response-status ${status < 400 ? 'success' : 'error'}`;
+      bodyEl.textContent = JSON.stringify(data, null, 2);
+    }
+
+    // API request helper
+    async function apiRequest(method, path, body = null) {
+      try {
+        const options = {
+          method,
+          headers: { 'Content-Type': 'application/json' },
+        };
+        if (body) options.body = JSON.stringify(body);
+        
+        const res = await fetch(`${API_URL}${path}`, options);
+        const data = await res.json();
+        
+        showResponse(res.status, data);
+        return { status: res.status, data };
+      } catch (err) {
+        showResponse(500, { error: err.message });
+        return null;
+      }
+    }
+
+    // Load all items
+    async function loadItems() {
+      const container = document.getElementById('itemsList');
+      container.innerHTML = '<div class="empty-state">Loading...</div>';
+      
+      const result = await apiRequest('GET', '/api/items');
+      
+      if (!result || !result.data.data?.items) {
+        container.innerHTML = '<div class="empty-state">Failed to load items</div>';
+        return;
+      }
+      
+      const items = result.data.data.items;
+      
+      if (items.length === 0) {
+        container.innerHTML = '<div class="empty-state">No items yet. Create one!</div>';
+        return;
+      }
+      
+      container.innerHTML = items.map(item => `
+        <div class="item-row">
+          <div class="item-info">
+            <div class="item-name">${item.name} ${item.value ? `(${item.value})` : ''}</div>
+            <div class="item-id">${item.id}</div>
+          </div>
+          <div class="item-actions">
+            <button class="btn-small" onclick="fillId('${item.id}')">Use ID</button>
+            <button class="btn-small btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    // Fill ID in forms
+    function fillId(id) {
+      document.getElementById('getItemId').value = id;
+      document.getElementById('updateId').value = id;
+      document.getElementById('deleteId').value = id;
+    }
+
+    // Quick delete
+    async function deleteItem(id) {
+      if (confirm(`Delete item ${id}?`)) {
+        await apiRequest('DELETE', `/api/items/${id}`);
+        loadItems();
+      }
+    }
+
+    // Form handlers
+    document.getElementById('createForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = document.getElementById('createName').value;
+      const value = document.getElementById('createValue').value;
+      const dataStr = document.getElementById('createData').value;
+      
+      let data = null;
+      if (dataStr) {
+        try { data = JSON.parse(dataStr); } 
+        catch { alert('Invalid JSON in Data field'); return; }
+      }
+      
+      await apiRequest('POST', '/api/items', { 
+        name, 
+        value: value ? parseInt(value) : null,
+        data
+      });
+      loadItems();
+      e.target.reset();
+    });
+
+    document.getElementById('getByIdForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('getItemId').value;
+      await apiRequest('GET', `/api/items/${id}`);
+    });
+
+    document.getElementById('updateForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('updateId').value;
+      const name = document.getElementById('updateName').value;
+      const value = document.getElementById('updateValue').value;
+      
+      const body = {};
+      if (name) body.name = name;
+      if (value) body.value = parseInt(value);
+      
+      await apiRequest('PUT', `/api/items/${id}`, body);
+      loadItems();
+    });
+
+    document.getElementById('deleteForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('deleteId').value;
+      await apiRequest('DELETE', `/api/items/${id}`);
+      loadItems();
+    });
+
+    // Init
+    checkHealth();
+    loadItems();
+    setInterval(checkHealth, 30000);
+  </script>
+</body>
+</html>
