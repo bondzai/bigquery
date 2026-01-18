@@ -26,15 +26,21 @@ const getClient = () => {
  * Execute a query with parameterized values
  * @param {string} query - SQL query string with @param placeholders
  * @param {Object} params - Query parameters
+ * @param {Object} types - Optional types for null values
  * @returns {Promise<Array>} Query results
  */
-const executeQuery = async (query, params = {}) => {
+const executeQuery = async (query, params = {}, types = null) => {
     const client = getClient();
     const options = {
         query,
         params,
         location: config.bigquery.location,
     };
+
+    // Add types if provided (required for null values)
+    if (types) {
+        options.types = types;
+    }
 
     const [rows] = await client.query(options);
     return rows;

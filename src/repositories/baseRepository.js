@@ -20,10 +20,10 @@ const createRepository = (
 
     return {
         /**
-         * Create a new record
-         * @param {Object} data - Record data
-         * @returns {Promise<Object>} Created record
-         */
+     * Create a new record using SQL INSERT (free tier compatible)
+     * @param {Object} data - Record data
+     * @returns {Promise<Object>} Created record
+     */
         async create(data) {
             const id = uuidv4();
             const now = new Date().toISOString();
@@ -31,13 +31,36 @@ const createRepository = (
             const record = {
                 id,
                 name: data.name,
-                value: data.value || null,
+                value: data.value !== undefined && data.value !== null ? data.value : null,
                 data: data.data ? JSON.stringify(data.data) : null,
                 created_at: now,
                 updated_at: now,
             };
 
-            await bigqueryService.insertRows(datasetName, tableName, [record]);
+            // Use SQL INSERT instead of streaming (free tier compatible)
+            const query = `
+        INSERT INTO ${fullTableName} (id, name, value, data, created_at, updated_at)
+        VALUES (@id, @name, @value, @data, @created_at, @updated_at)
+      `;
+
+            // Types are required for nullable fields when value is null
+            const types = {
+                id: 'STRING',
+                name: 'STRING',
+                value: 'INT64',
+                data: 'STRING',
+                created_at: 'STRING',
+                updated_at: 'STRING',
+            };
+
+            await bigqueryService.executeQuery(query, {
+                id: record.id,
+                name: record.name,
+                value: record.value,
+                data: record.data,
+                created_at: record.created_at,
+                updated_at: record.updated_at,
+            }, types);
 
             return { ...record, data: data.data || null };
         },
