@@ -38,9 +38,10 @@ const createRepository = (
             };
 
             // Use SQL INSERT instead of streaming (free tier compatible)
+            // Use PARSE_JSON for the data column which is JSON type
             const query = `
         INSERT INTO ${fullTableName} (id, name, value, data, created_at, updated_at)
-        VALUES (@id, @name, @value, @data, @created_at, @updated_at)
+        VALUES (@id, @name, @value, PARSE_JSON(@data), @created_at, @updated_at)
       `;
 
             // Types are required for nullable fields when value is null
@@ -48,8 +49,8 @@ const createRepository = (
                 id: 'STRING',
                 name: 'STRING',
                 value: 'INT64',
-                data: 'STRING',
-                created_at: 'STRING',
+                data: 'STRING', // We send as string, PARSE_JSON converts to JSON
+                created_at: 'STRING', // Timestamps sent as ISO strings
                 updated_at: 'STRING',
             };
 
@@ -82,9 +83,14 @@ const createRepository = (
 
             const rows = await bigqueryService.executeQuery(query, { limit, offset });
 
+            // Data comes back as JSON object/value from BigQuery client, no need to parse if it's already an object
+            // But sometimes it might be returned as string depending on client config. 
+            // The client usually returns JSON column as object.
+            // Let's check safely.
             return rows.map(row => ({
                 ...row,
-                data: row.data ? JSON.parse(row.data) : null,
+                // If row.data is a string, parse it. If it's an object, leave it.
+                data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
             }));
         },
 
@@ -110,7 +116,7 @@ const createRepository = (
             const row = rows[0];
             return {
                 ...row,
-                data: row.data ? JSON.parse(row.data) : null,
+                data: typeof row.data === 'string' ? JSON.parse(row.data) : row.data,
             };
         },
 
@@ -127,18 +133,26 @@ const createRepository = (
             // Build SET clauses dynamically
             const setClauses = ['updated_at = @updated_at'];
             const params = { id, updated_at: now };
+            // Types map for update parameters
+            const types = {
+                id: 'STRING',
+                updated_at: 'STRING'
+            };
 
             if (data.name !== undefined) {
                 setClauses.push('name = @name');
                 params.name = data.name;
+                types.name = 'STRING';
             }
             if (data.value !== undefined) {
                 setClauses.push('value = @value');
                 params.value = data.value;
+                types.value = 'INT64';
             }
             if (data.data !== undefined) {
-                setClauses.push('data = @data');
+                setClauses.push('data = PARSE_JSON(@data)');
                 params.data = JSON.stringify(data.data);
+                types.data = 'STRING';
             }
 
             const query = `
@@ -147,7 +161,7 @@ const createRepository = (
         WHERE id = @id
       `;
 
-            await bigqueryService.executeQuery(query, params);
+            await bigqueryService.executeQuery(query, params, types);
 
             // Fetch and return updated record
             return this.findById(id);
